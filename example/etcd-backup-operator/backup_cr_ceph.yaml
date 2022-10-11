@@ -1,0 +1,14 @@
+apiVersion: "etcd.database.coreos.com/v1beta2"
+kind: "EtcdBackup"
+metadata:
+  name: example-etcd-cluster-backup
+spec:
+  etcdEndpoints: ["http://example-etcd-cluster-client:2379"]
+  storageType: S3
+  s3:
+    # The format of "path" must be: "<s3-bucket-name>/<path-to-backup-file>"
+    # e.g: "mybucket/etcd.backup"
+    path: py-first/etcd.backup
+    awsSecret: aws
+    endpoint: "http://192.168.0.147:7480"
+    forcePathStyle: true

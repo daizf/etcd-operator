@@ -20,6 +20,7 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 
+        "context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -37,7 +38,7 @@ func NewClientFromSecret(kubecli kubernetes.Interface, namespace, endpoint, ossS
 		}
 	}()
 
-	se, err := kubecli.CoreV1().Secrets(namespace).Get(ossSecret, metav1.GetOptions{})
+	se, err := kubecli.CoreV1().Secrets(namespace).Get(context.TODO(), ossSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k8s secret: %v", err)
 	}

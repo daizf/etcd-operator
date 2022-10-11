@@ -17,13 +17,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/client"
 	"github.com/coreos/etcd-operator/pkg/generated/clientset/versioned"
-	"github.com/coreos/etcd-operator/pkg/util/constants"
 	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
 
 	"github.com/sirupsen/logrus"
@@ -57,10 +55,10 @@ type BackupRunner struct {
 }
 
 // New creates a backup operator.
-func New(createCRD bool) *Backup {
+func New(createCRD bool, namespace string) *Backup {
 	return &Backup{
 		logger:      logrus.WithField("pkg", "controller"),
-		namespace:   os.Getenv(constants.EnvOperatorPodNamespace),
+		namespace:   namespace,
 		kubecli:     k8sutil.MustNewKubeClient(),
 		backupCRCli: client.MustNewInCluster(),
 		kubeExtCli:  k8sutil.MustNewKubeExtClient(),
