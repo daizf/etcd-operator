@@ -22,10 +22,8 @@ import (
 	"time"
 
 	"github.com/coreos/etcd-operator/pkg/backup/writer"
-	"github.com/coreos/etcd-operator/pkg/util/constants"
-
+        "github.com/coreos/etcd-operator/pkg/util/etcdutil"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -105,65 +103,9 @@ func (bm *BackupManager) EnsureMaxBackup(ctx context.Context, basePath string, m
 // etcdClientWithMaxRevision gets the etcd endpoint with the maximum kv store revision
 // and returns the etcd client of that member.
 func (bm *BackupManager) etcdClientWithMaxRevision(ctx context.Context) (*clientv3.Client, int64, error) {
-	etcdcli, rev, err := getClientWithMaxRev(ctx, bm.endpoints, bm.etcdTLSConfig)
-	if err != nil {
+	etcdcli, rev, err := etcdutil.ClientWithMaxRev(ctx, bm.endpoints, bm.etcdTLSConfig)
+        if err != nil {
 		return nil, 0, fmt.Errorf("failed to get etcd client with maximum kv store revision: %v", err)
 	}
-	return etcdcli, rev, nil
-}
-
-func getClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (*clientv3.Client, int64, error) {
-	mapEps := make(map[string]*clientv3.Client)
-	var maxClient *clientv3.Client
-	maxRev := int64(0)
-	errors := make([]string, 0)
-	for _, endpoint := range endpoints {
-		// TODO: update clientv3 to 3.2.x and then use ctx as in clientv3.Config.
-		cfg := clientv3.Config{
-			Endpoints:   []string{endpoint},
-			DialTimeout: constants.DefaultDialTimeout,
-			TLS:         tc,
-		}
-		etcdcli, err := clientv3.New(cfg)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("failed to create etcd client for endpoint (%v): %v", endpoint, err))
-			continue
-		}
-		mapEps[endpoint] = etcdcli
-
-		resp, err := etcdcli.Get(ctx, "/", clientv3.WithSerializable())
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("failed to get revision from endpoint (%s)", endpoint))
-			continue
-		}
-
-		logrus.Infof("getMaxRev: endpoint %s revision (%d)", endpoint, resp.Header.Revision)
-		if resp.Header.Revision > maxRev {
-			maxRev = resp.Header.Revision
-			maxClient = etcdcli
-		}
-	}
-
-	// close all open clients that are not maxClient.
-	for _, cli := range mapEps {
-		if cli == maxClient {
-			continue
-		}
-		cli.Close()
-	}
-
-	if maxClient == nil {
-		return nil, 0, fmt.Errorf("could not create an etcd client for the max revision purpose from given endpoints (%v)", endpoints)
-	}
-
-	var err error
-	if len(errors) > 0 {
-		errorStr := ""
-		for _, errStr := range errors {
-			errorStr += errStr + "\n"
-		}
-		err = fmt.Errorf(errorStr)
-	}
-
-	return maxClient, maxRev, err
+        return etcdcli, rev, nil
 }

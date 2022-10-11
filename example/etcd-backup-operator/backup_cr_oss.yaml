@@ -1,0 +1,12 @@
+apiVersion: "etcd.database.coreos.com/v1beta2"
+kind: "EtcdBackup"
+metadata:
+  name: example-etcd-cluster-backup-oss
+spec:
+  etcdEndpoints:
+    -  http://example-etcd-cluster-client:2379
+  storageType: OSS
+  oss:
+    endpoint: http://oss-cn-hongkong.aliyuncs.com
+    ossSecret: aliyun-oss
+    path: etcd-backups-bucket/etcd.backup

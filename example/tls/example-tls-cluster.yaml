@@ -4,6 +4,7 @@ metadata:
   name: "example"
 spec:
   size: 3
+  version: v3.4.21
   TLS:
     static:
       member:

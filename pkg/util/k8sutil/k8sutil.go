@@ -15,19 +15,19 @@
 package k8sutil
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
+	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
+	"github.com/coreos/etcd-operator/pkg/util/retryutil"
+	"github.com/pborman/uuid"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
-	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
-	"github.com/coreos/etcd-operator/pkg/util/retryutil"
-	"github.com/pborman/uuid"
 
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
@@ -63,6 +63,7 @@ const (
 	MaxNameLength = 63 - randomSuffixLength - 1
 
 	defaultBusyboxImage = "busybox:1.28.0-glibc"
+	defaultCurlImage    = "daizf/curl:latest"
 
 	// AnnotationScope annotation name for defining instance scope. Used for specifying cluster wide clusters.
 	AnnotationScope = "etcd.database.coreos.com/scope"
@@ -104,7 +105,7 @@ func makeRestoreInitContainers(backupURL *url.URL, token, repo, version string, 
 	return []v1.Container{
 		{
 			Name:  "fetch-backup",
-			Image: "tutum/curl",
+			Image: "curl",
 			Command: []string{
 				"/bin/bash", "-ec",
 				fmt.Sprintf(`
@@ -147,6 +148,14 @@ func imageNameBusybox(policy *api.PodPolicy) string {
 	return defaultBusyboxImage
 }
 
+// imageNameCurl returns the default image for curl init container, or the image specified in the PodPolicy
+func imageNameCurl(policy *api.PodPolicy) string {
+	if policy != nil && len(policy.CurlImage) > 0 {
+		return policy.CurlImage
+	}
+	return defaultCurlImage
+}
+
 func PodWithNodeSelector(p *v1.Pod, ns map[string]string) *v1.Pod {
 	p.Spec.NodeSelector = ns
 	return p
@@ -185,7 +194,7 @@ func CreatePeerService(kubecli kubernetes.Interface, clusterName, ns string, own
 func createService(kubecli kubernetes.Interface, svcName, clusterName, ns, clusterIP string, ports []v1.ServicePort, owner metav1.OwnerReference, publishNotReadyAddresses bool) error {
 	svc := newEtcdServiceManifest(svcName, clusterName, clusterIP, ports, publishNotReadyAddresses)
 	addOwnerRefToObject(svc.GetObjectMeta(), owner)
-	_, err := kubecli.CoreV1().Services(ns).Create(svc)
+	_, err := kubecli.CoreV1().Services(ns).Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -194,7 +203,7 @@ func createService(kubecli kubernetes.Interface, svcName, clusterName, ns, clust
 
 // CreateAndWaitPod creates a pod and waits until it is running
 func CreateAndWaitPod(kubecli kubernetes.Interface, ns string, pod *v1.Pod, timeout time.Duration) (*v1.Pod, error) {
-	_, err := kubecli.CoreV1().Pods(ns).Create(pod)
+	_, err := kubecli.CoreV1().Pods(ns).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +211,7 @@ func CreateAndWaitPod(kubecli kubernetes.Interface, ns string, pod *v1.Pod, time
 	interval := 5 * time.Second
 	var retPod *v1.Pod
 	err = retryutil.Retry(interval, int(timeout/(interval)), func() (bool, error) {
-		retPod, err = kubecli.CoreV1().Pods(ns).Get(pod.Name, metav1.GetOptions{})
+		retPod, err = kubecli.CoreV1().Pods(ns).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -391,7 +400,7 @@ func newEtcdPod(m *etcdutil.Member, initialCluster []string, clusterName, state,
 					done`, DNSTimeout, m.Addr())},
 			}},
 			Containers:    []v1.Container{container},
-			RestartPolicy: v1.RestartPolicyNever,
+			RestartPolicy: v1.RestartPolicyOnFailure,
 			Volumes:       volumes,
 			// DNS A record: `[m.Name].[clusterName].Namespace.svc`
 			// For example, etcd-795649v9kq in default namesapce will have DNS name
@@ -483,7 +492,7 @@ func CreatePatch(o, n, datastruct interface{}) ([]byte, error) {
 }
 
 func PatchDeployment(kubecli kubernetes.Interface, namespace, name string, updateFunc func(*appsv1beta1.Deployment)) error {
-	od, err := kubecli.AppsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	od, err := kubecli.AppsV1beta1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -493,7 +502,7 @@ func PatchDeployment(kubecli kubernetes.Interface, namespace, name string, updat
 	if err != nil {
 		return err
 	}
-	_, err = kubecli.AppsV1beta1().Deployments(namespace).Patch(name, types.StrategicMergePatchType, patchData)
+	_, err = kubecli.AppsV1beta1().Deployments(namespace).Patch(context.TODO(), name, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	return err
 }
 

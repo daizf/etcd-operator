@@ -16,6 +16,7 @@ package absfactory
 
 import (
 	"fmt"
+        "context"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -47,7 +48,7 @@ func NewClientFromSecret(kubecli kubernetes.Interface, namespace, absSecret stri
 		}
 	}()
 
-	se, err := kubecli.CoreV1().Secrets(namespace).Get(absSecret, metav1.GetOptions{})
+	se, err := kubecli.CoreV1().Secrets(namespace).Get(context.TODO(), absSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k8s secret: %v", err)
 	}

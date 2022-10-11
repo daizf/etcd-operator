@@ -21,15 +21,33 @@ import (
 
 	"github.com/coreos/etcd-operator/pkg/util/constants"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
-func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListResponse, error) {
+func initClient(clientURLs []string, tc *tls.Config) (*clientv3.Client, error) {
 	cfg := clientv3.Config{
 		Endpoints:   clientURLs,
 		DialTimeout: constants.DefaultDialTimeout,
 		TLS:         tc,
 	}
-	etcdcli, err := clientv3.New(cfg)
+	return clientv3.New(cfg)
+}
+
+func AddMember(clientURLs []string, tc *tls.Config, peerURLs []string) (*clientv3.MemberAddResponse, error) {
+	etcdcli, err := initClient(clientURLs, tc)
+	if err != nil {
+		return nil, fmt.Errorf("add one member failed: creating etcd client failed %v", err)
+	}
+	defer etcdcli.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	resp, err := etcdcli.MemberAdd(ctx, peerURLs)
+	cancel()
+	etcdcli.Close()
+	return resp, err
+}
+
+func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListResponse, error) {
+	etcdcli, err := initClient(clientURLs, tc)
 	if err != nil {
 		return nil, fmt.Errorf("list members failed: creating etcd client failed: %v", err)
 	}
@@ -42,12 +60,7 @@ func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListRespo
 }
 
 func RemoveMember(clientURLs []string, tc *tls.Config, id uint64) error {
-	cfg := clientv3.Config{
-		Endpoints:   clientURLs,
-		DialTimeout: constants.DefaultDialTimeout,
-		TLS:         tc,
-	}
-	etcdcli, err := clientv3.New(cfg)
+	etcdcli, err := initClient(clientURLs, tc)
 	if err != nil {
 		return err
 	}
@@ -57,4 +70,55 @@ func RemoveMember(clientURLs []string, tc *tls.Config, id uint64) error {
 	_, err = etcdcli.Cluster.MemberRemove(ctx, id)
 	cancel()
 	return err
+}
+
+func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (*clientv3.Client, int64, error) {
+	mapEps := make(map[string]*clientv3.Client)
+	var maxClient *clientv3.Client
+	maxRev := int64(0)
+	errors := make([]string, 0)
+	for _, endpoint := range endpoints {
+		// TODO: update clientv3 to 3.2.x and then use ctx as in clientv3.Config.
+		etcdcli, err := initClient([]string{endpoint}, tc)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("failed to create etcd client for endpoint (%v): %v", endpoint, err))
+			continue
+		}
+		mapEps[endpoint] = etcdcli
+
+		resp, err := etcdcli.Get(ctx, "/", clientv3.WithSerializable())
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("failed to get revision from endpoint (%s)", endpoint))
+			continue
+		}
+
+		logrus.Infof("getMaxRev: endpoint %s revision (%d)", endpoint, resp.Header.Revision)
+		if resp.Header.Revision > maxRev {
+			maxRev = resp.Header.Revision
+			maxClient = etcdcli
+		}
+	}
+
+	// close all open clients that are not maxClient.
+	for _, cli := range mapEps {
+		if cli == maxClient {
+			continue
+		}
+		cli.Close()
+	}
+
+	if maxClient == nil {
+		return nil, 0, fmt.Errorf("could not create an etcd client for the max revision purpose from given endpoints (%v)", endpoints)
+	}
+
+	var err error
+	if len(errors) > 0 {
+		errorStr := ""
+		for _, errStr := range errors {
+			errorStr += errStr + "\n"
+		}
+		err = fmt.Errorf(errorStr)
+	}
+
+	return maxClient, maxRev, err
 }

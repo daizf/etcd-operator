@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"runtime"
 	"time"
@@ -37,16 +38,19 @@ import (
 )
 
 var (
-	createCRD bool
+	namespace   string
+	createCRD   bool
+	clusterWide bool
 )
 
 func init() {
 	flag.BoolVar(&createCRD, "create-crd", true, "The backup operator will not create the EtcdBackup CRD when this flag is set to false.")
+	flag.BoolVar(&clusterWide, "cluster-wide", false, "Enable operator to watch clusters in all namespaces.")
 	flag.Parse()
 }
 
 func main() {
-	namespace := os.Getenv(constants.EnvOperatorPodNamespace)
+	namespace = os.Getenv(constants.EnvOperatorPodNamespace)
 	if len(namespace) == 0 {
 		logrus.Fatalf("must set env %s", constants.EnvOperatorPodNamespace)
 	}
@@ -63,13 +67,16 @@ func main() {
 	logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
 	logrus.Infof("etcd-backup-operator Version: %v", version.Version)
 	logrus.Infof("Git SHA: %s", version.GitSHA)
+	logrus.Infof("Create crd: %t", createCRD)
+	logrus.Infof("Cluster wide: %t", clusterWide)
 
 	kubecli := k8sutil.MustNewKubeClient()
 	rl, err := resourcelock.New(
 		resourcelock.EndpointsResourceLock,
 		namespace,
 		"etcd-backup-operator",
-		kubecli.Core(),
+		kubecli.CoreV1(),
+		kubecli.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: createRecorder(kubecli, name, namespace),
@@ -99,14 +106,18 @@ func main() {
 func createRecorder(kubecli kubernetes.Interface, name, namespace string) record.EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(logrus.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubecli.Core().RESTClient()).Events(namespace)})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubecli.CoreV1().RESTClient()).Events(namespace)})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: name})
 }
 
 func run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	c := controller.New(createCRD)
+	ns := namespace
+	if clusterWide {
+		ns = metav1.NamespaceAll
+	}
+	c := controller.New(createCRD, ns)
 	err := c.Start(ctx)
 	if err != nil {
 		logrus.Fatalf("operator stopped with error: %v", err)

@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: etcd-restore-operator
@@ -6,6 +6,9 @@ metadata:
     name: etcd-restore-operator
 spec:
   replicas: 1
+  selector:
+     matchLabels:
+       name: etcd-restore-operator 
   template:
     metadata:
       labels:
@@ -13,9 +16,10 @@ spec:
     spec:
       containers:
       - name: etcd-restore-operator
-        image: quay.io/coreos/etcd-operator:v0.9.4
+        image: daizf/etcd-operator:v0.21.14
         command:
         - etcd-restore-operator
+        - -create-crd=false
         env:
         - name: MY_POD_NAMESPACE
           valueFrom:
