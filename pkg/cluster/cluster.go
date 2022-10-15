@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+        "context"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/generated/clientset/versioned"
@@ -325,7 +326,7 @@ func (c *Cluster) startSeedMember() error {
 	}
 	c.members = ms
 	c.logger.Infof("cluster created with seed member (%s)", m.Name)
-	_, err := c.eventsCli.Create(k8sutil.NewMemberAddEvent(m.Name, c.cluster))
+	_, err := c.eventsCli.Create(context.TODO(), k8sutil.NewMemberAddEvent(m.Name, c.cluster), metav1.CreateOptions{})
 	if err != nil {
 		c.logger.Errorf("failed to create new member add event: %v", err)
 	}
@@ -373,7 +374,7 @@ func (c *Cluster) createPod(members etcdutil.MemberSet, m *etcdutil.Member, stat
 	pod := k8sutil.NewEtcdPod(m, members.PeerURLPairs(), c.cluster.Name, state, uuid.New(), c.cluster.Spec, c.cluster.AsOwner())
 	if c.isPodPVEnabled() {
 		pvc := k8sutil.NewEtcdPodPVC(m, *c.cluster.Spec.Pod.PersistentVolumeClaimSpec, c.cluster.Name, c.cluster.Namespace, c.cluster.AsOwner())
-		_, err := c.config.KubeCli.CoreV1().PersistentVolumeClaims(c.cluster.Namespace).Create(pvc)
+		_, err := c.config.KubeCli.CoreV1().PersistentVolumeClaims(c.cluster.Namespace).Create(context.TODO(), pvc, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create PVC for member (%s): %v", m.Name, err)
 		}
@@ -381,7 +382,7 @@ func (c *Cluster) createPod(members etcdutil.MemberSet, m *etcdutil.Member, stat
 	} else {
 		k8sutil.AddEtcdVolumeToPod(pod, nil)
 	}
-	_, err := c.config.KubeCli.CoreV1().Pods(c.cluster.Namespace).Create(pod)
+	_, err := c.config.KubeCli.CoreV1().Pods(c.cluster.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	return err
 }
 
@@ -452,7 +453,7 @@ func (c *Cluster) updateCRStatus() error {
 
 	newCluster := c.cluster
 	newCluster.Status = c.status
-	newCluster, err := c.config.EtcdCRCli.EtcdV1beta2().EtcdClusters(c.cluster.Namespace).Update(c.cluster)
+	newCluster, err := c.config.EtcdCRCli.EtcdV1beta2().EtcdClusters(c.cluster.Namespace).Update(context.TODO(), c.cluster, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update CR status: %v", err)
 	}
@@ -479,7 +480,7 @@ func (c *Cluster) reportFailedStatus() {
 		}
 
 		cl, err := c.config.EtcdCRCli.EtcdV1beta2().EtcdClusters(c.cluster.Namespace).
-			Get(c.cluster.Name, metav1.GetOptions{})
+			Get(context.TODO(), c.cluster.Name, metav1.GetOptions{})
 		if err != nil {
 			// Update (PUT) will return conflict even if object is deleted since we have UID set in object.
 			// Because it will check UID first and return something like:

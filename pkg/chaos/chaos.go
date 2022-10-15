@@ -89,7 +89,7 @@ func (m *Monkeys) CrushPods(ctx context.Context, c *CrashConfig) {
 		}
 
 		for tokill := range tokills {
-			err = m.kubecli.CoreV1().Pods(ns).Delete(context.TODO(), okill, metav1.NewDeleteOptions(0))
+			err = m.kubecli.CoreV1().Pods(ns).Delete(context.TODO(), tokill, metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("failed to kill pod %v: %v", tokill, err)
 				continue
