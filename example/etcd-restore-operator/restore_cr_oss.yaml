@@ -1,0 +1,15 @@
+apiVersion: "etcd.database.coreos.com/v1beta2"
+kind: "EtcdRestore"
+metadata:
+  # The restore CR name must be the same as spec.etcdCluster.name
+  name: example-etcd-cluster-dzf
+spec:
+  etcdCluster:
+    # The namespace is the same as this EtcdRestore CR
+    name: example-etcd-cluster-dzf
+  backupStorageType: OSS
+  oss:
+    # The format of the path must be: "<oss-bucket-name>/<path-to-backup-file>"
+    path: etcd-backups-bucket/etcd.backup_v96323_2022-10-16-12:50:52
+    ossSecret: aliyun-oss
+    endpoint: http://oss-cn-hongkong.aliyuncs.com
