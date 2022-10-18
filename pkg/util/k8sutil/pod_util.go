@@ -82,8 +82,8 @@ func newEtcdProbe(isSecure bool) *v1.Probe {
 			},
 		},
 		InitialDelaySeconds: 10,
-		TimeoutSeconds:      10,
-		PeriodSeconds:       60,
+		TimeoutSeconds:      5,
+		PeriodSeconds:       10,
 		FailureThreshold:    3,
 	}
 }

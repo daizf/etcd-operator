@@ -2,11 +2,11 @@ apiVersion: "etcd.database.coreos.com/v1beta2"
 kind: "EtcdRestore"
 metadata:
   # The restore CR name must be the same as spec.etcdCluster.name
-  name: example-etcd-cluster-dzf
+  name: example-etcd-cluster
 spec:
   etcdCluster:
     # The namespace is the same as this EtcdRestore CR
-    name: example-etcd-cluster-dzf
+    name: example-etcd-cluster
   backupStorageType: OSS
   oss:
     # The format of the path must be: "<oss-bucket-name>/<path-to-backup-file>"
