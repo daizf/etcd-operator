@@ -20,12 +20,10 @@ import (
 	"fmt"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
-	"github.com/coreos/etcd-operator/pkg/util/constants"
-	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
+        "github.com/coreos/etcd-operator/pkg/util/etcdutil"
 	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"k8s.io/api/core/v1"
 )
@@ -116,27 +114,13 @@ func (c *Cluster) resize() error {
 
 func (c *Cluster) addOneMember() error {
 	c.status.SetScalingUpCondition(c.members.Size(), c.cluster.Spec.Size)
-
-	cfg := clientv3.Config{
-		Endpoints:   c.members.ClientURLs(),
-		DialTimeout: constants.DefaultDialTimeout,
-		TLS:         c.tlsConfig,
-	}
-	etcdcli, err := clientv3.New(cfg)
-	if err != nil {
-		return fmt.Errorf("add one member failed: creating etcd client failed %v", err)
-	}
-	defer etcdcli.Close()
-
-	newMember := c.newMember()
-	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
-	resp, err := etcdcli.MemberAdd(ctx, []string{newMember.PeerURL()})
-	cancel()
+        newMember := c.newMember()
+	resp, err := etcdutil.AddMember(c.members.ClientURLs(), c.tlsConfig, []string{newMember.PeerURL()})
 	if err != nil {
 		return fmt.Errorf("fail to add new member (%s): %v", newMember.Name, err)
 	}
 	newMember.ID = resp.Member.ID
-	c.members.Add(newMember)
+        c.members.Add(newMember)
 
 	if err := c.createPod(c.members, newMember, "existing"); err != nil {
 		return fmt.Errorf("fail to create member's pod (%s): %v", newMember.Name, err)
