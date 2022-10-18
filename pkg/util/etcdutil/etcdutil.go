@@ -20,35 +20,34 @@ import (
 	"fmt"
 
 	"github.com/coreos/etcd-operator/pkg/util/constants"
-        "github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
-func AddMember(clientURLs []string, tc *tls.Config, peerURLs []string) (*clientv3.MemberAddResponse, error) {
+func initClient(clientURLs []string, tc *tls.Config) (*clientv3.Client, error) {
 	cfg := clientv3.Config{
 		Endpoints:   clientURLs,
 		DialTimeout: constants.DefaultDialTimeout,
 		TLS:         tc,
 	}
-	etcdcli, err := clientv3.New(cfg)
+	return clientv3.New(cfg)
+}
+
+func AddMember(clientURLs []string, tc *tls.Config, peerURLs []string) (*clientv3.MemberAddResponse, error) {
+	etcdcli, err := initClient(clientURLs, tc)
 	if err != nil {
 		return nil, fmt.Errorf("add one member failed: creating etcd client failed %v", err)
 	}
 	defer etcdcli.Close()
-        ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
-        resp, err := etcdcli.MemberAdd(ctx, peerURLs)
-        cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	resp, err := etcdcli.MemberAdd(ctx, peerURLs)
+	cancel()
 	etcdcli.Close()
 	return resp, err
 }
 
 func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListResponse, error) {
-	cfg := clientv3.Config{
-		Endpoints:   clientURLs,
-		DialTimeout: constants.DefaultDialTimeout,
-		TLS:         tc,
-	}
-	etcdcli, err := clientv3.New(cfg)
+	etcdcli, err := initClient(clientURLs, tc)
 	if err != nil {
 		return nil, fmt.Errorf("list members failed: creating etcd client failed: %v", err)
 	}
@@ -61,12 +60,7 @@ func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListRespo
 }
 
 func RemoveMember(clientURLs []string, tc *tls.Config, id uint64) error {
-	cfg := clientv3.Config{
-		Endpoints:   clientURLs,
-		DialTimeout: constants.DefaultDialTimeout,
-		TLS:         tc,
-	}
-	etcdcli, err := clientv3.New(cfg)
+	etcdcli, err := initClient(clientURLs, tc)
 	if err != nil {
 		return err
 	}
@@ -85,12 +79,7 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 	errors := make([]string, 0)
 	for _, endpoint := range endpoints {
 		// TODO: update clientv3 to 3.2.x and then use ctx as in clientv3.Config.
-		cfg := clientv3.Config{
-			Endpoints:   []string{endpoint},
-			DialTimeout: constants.DefaultDialTimeout,
-			TLS:         tc,
-		}
-		etcdcli, err := clientv3.New(cfg)
+		etcdcli, err := initClient([]string{endpoint}, tc)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to create etcd client for endpoint (%v): %v", endpoint, err))
 			continue
@@ -133,4 +122,3 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 
 	return maxClient, maxRev, err
 }
-

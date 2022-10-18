@@ -15,19 +15,19 @@
 package k8sutil
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
+	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
+	"github.com/coreos/etcd-operator/pkg/util/retryutil"
+	"github.com/pborman/uuid"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-        "context"
-	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
-	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
-	"github.com/coreos/etcd-operator/pkg/util/retryutil"
-	"github.com/pborman/uuid"
 
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"

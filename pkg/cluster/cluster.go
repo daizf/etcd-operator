@@ -15,6 +15,7 @@
 package cluster
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	"reflect"
 	"strings"
 	"time"
-        "context"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/generated/clientset/versioned"
@@ -257,12 +257,20 @@ func (c *Cluster) run() {
 				rerr = c.updateMembers(podsToMemberSet(running, c.isSecureClient()))
 				if rerr != nil {
 					c.logger.Errorf("failed to update members: %v", rerr)
+					// TODO Whether it is a x509 abnormality. https://pkg.go.dev/go.etcd.io/etcd/client/v3
+					if strings.Contains(rerr.Error(), context.DeadlineExceeded.Error()) {
+						c.reset()
+					}
 					break
 				}
 			}
 			rerr = c.reconcile(running)
 			if rerr != nil {
 				c.logger.Errorf("failed to reconcile: %v", rerr)
+				// TODO Whether it is a x509 abnormality. https://pkg.go.dev/go.etcd.io/etcd/client/v3
+				if strings.Contains(rerr.Error(), context.DeadlineExceeded.Error()) {
+					c.reset()
+				}
 				break
 			}
 			c.updateMemberStatus(running)
@@ -534,4 +542,20 @@ func (c *Cluster) logSpecUpdate(oldSpec, newSpec api.ClusterSpec) {
 		c.logger.Info(m)
 	}
 
+}
+
+func (c *Cluster) reset() error {
+	if c.isSecureClient() {
+		d, err := k8sutil.GetTLSDataFromSecret(c.config.KubeCli, c.cluster.Namespace, c.cluster.Spec.TLS.Static.OperatorSecret)
+		if err != nil {
+			c.logger.Errorf("failed to reset cluster: %v operator secret: %v", c.cluster.ClusterName, err)
+			return err
+		}
+		c.tlsConfig, err = etcdutil.NewTLSConfig(d.CertData, d.KeyData, d.CAData)
+		if err != nil {
+			return err
+		}
+		c.logger.Infof("successfully reset cluster operator secret: ", c.cluster.Spec.TLS.Static.OperatorSecret)
+	}
+	return nil
 }
