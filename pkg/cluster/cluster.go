@@ -548,14 +548,14 @@ func (c *Cluster) reset() error {
 	if c.isSecureClient() {
 		d, err := k8sutil.GetTLSDataFromSecret(c.config.KubeCli, c.cluster.Namespace, c.cluster.Spec.TLS.Static.OperatorSecret)
 		if err != nil {
-			c.logger.Errorf("failed to reset cluster: %v operator secret: %v", c.cluster.ClusterName, err)
+			c.logger.Errorf("failed to reset cluster operator secret: %v", err)
 			return err
 		}
 		c.tlsConfig, err = etcdutil.NewTLSConfig(d.CertData, d.KeyData, d.CAData)
 		if err != nil {
 			return err
 		}
-		c.logger.Infof("successfully reset cluster operator secret: ", c.cluster.Spec.TLS.Static.OperatorSecret)
+		c.logger.Infof("successfully reset cluster operator secret: %s", c.cluster.Spec.TLS.Static.OperatorSecret)
 	}
 	return nil
 }
