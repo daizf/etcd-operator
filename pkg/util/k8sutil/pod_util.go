@@ -17,6 +17,7 @@ package k8sutil
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
@@ -53,7 +54,13 @@ func etcdContainer(cmd []string, repo, version string) v1.Container {
 		},
 		VolumeMounts: etcdVolumeMounts(),
 	}
-
+	// support arm64
+	if strings.Contains(version, "arm64") {
+		c.Env = append(c.Env, v1.EnvVar{
+			Name:  "ETCD_UNSUPPORTED_ARCH",
+			Value: "arm64",
+		})
+	}
 	return c
 }
 
