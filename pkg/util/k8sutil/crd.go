@@ -68,6 +68,63 @@ func CreateCRD(clientset apiextensionsclient.Interface, crdName, rkind, rplural,
 						// TODO define each crd's OpenAPIV3Schema
 						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
 							Type: "object",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"spec": {
+									Type: "object",
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"size": {
+											Type:        "integer",
+											Minimum:     float64Ptr(1),
+											Maximum:     float64Ptr(7),
+											Description: "Size is the expected size of the etcd cluster.The etcd-operator will eventually make the size of the running",
+										},
+										"repository": {
+											Type: "string",
+											Description: "Repository is the name of the repository that hosts etcd container images. " +
+												"It should be direct clone of the repository in official release: https://github.com/coreos/etcd/releases" +
+												"By default, it is `quay.io/coreos/etcd`.",
+										},
+										"version": {
+											Type:        "string",
+											Description: "Version is the expected version of the etcd cluster. If version is not set, default is \"3.2.13\".",
+										},
+										"paused": {
+											Type:        "bool",
+											Description: "Paused is to pause the control of the operator for the etcd cluster.",
+										},
+										"TLS": {
+											Type:        "object",
+											Description: "etcd cluster TLS configuration",
+											Properties: map[string]apiextensionsv1.JSONSchemaProps{
+												"static": {
+													Type:        "object",
+													Description: "StaticTLS enables user to generate static x509 certificates and keys, put them into Kubernetes secrets, and specify them into here.",
+													Properties: map[string]apiextensionsv1.JSONSchemaProps{
+														"member": {
+															Type:        "object",
+															Description: "Member contains secrets containing TLS certs used by each etcd member pod.",
+															Properties: map[string]apiextensionsv1.JSONSchemaProps{
+																"peerSecret": {
+																	Type:        "string",
+																	Description: "PeerSecret is the secret containing TLS certs used by each etcd member pod for the communication between etcd peers.",
+																},
+																"serverSecret": {
+																	Type:        "string",
+																	Description: "ServerSecret is the secret containing TLS certs used by each etcd member pod for the communication between etcd server and its clients.",
+																},
+															},
+														},
+														"operatorSecret": {
+															Type:        "string",
+															Description: "OperatorSecret is the secret containing TLS certs used by operator to talk securely to this cluster.",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -121,4 +178,12 @@ func MustNewKubeExtClient() apiextensionsclient.Interface {
 		panic(err)
 	}
 	return apiextensionsclient.NewForConfigOrDie(cfg)
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
+func int64Ptr(f int64) *int64 {
+	return &f
 }
