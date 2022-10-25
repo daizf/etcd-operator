@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: etcdbackups.etcd.database.coreos.com
+  name: etcdrestores.etcd.database.coreos.com
 spec:
   group: etcd.database.coreos.com
   names:
-    kind: EtcdBackup
-    listKind: EtcdBackupList
-    plural: etcdbackups
-    singular: etcdbackup
+    kind: EtcdRestore
+    listKind: EtcdRestoreList
+    plural: etcdrestores
+    singular: etcdrestore
   scope: Namespaced
   versions:
     - name: v1beta2
@@ -29,41 +29,16 @@ spec:
             metadata:
               type: object
             spec:
-              description: BackupSpec contains a backup specification for an etcd cluster.
+              description: RestoreSpec defines how to restore an etcd cluster from existing backup.
               properties:
-                etcdEndpoints:
-                  description: EtcdEndpoints specifies the endpoints of an etcd cluster.
-                                When multiple endpoints are given, the backup operator retrieves
-                                the backup from the endpoint that has the most up-to-date state.
-                                the given endpoints must belong to the same etcd cluster.
-                  type: array
-                  items:
-                    type: string
-                storageType:
-                  description: StorageType is the etcd backup storage type.
-                                  We need this field because CRD doesn't support validation against invalid fields
-                                  and we cannot verify invalid backup storage source.
+                backupStorageType:
+                  description: BackupStorageType is the type of the backup storage which is used as RestoreSource.
                   enum:
                     - S3
                     - ABS
                     - GCS
                     - OSS
                   type: string
-                backupPolicy:
-                  description: BackupPolicy configures the backup process.
-                  type: object
-                  properties:
-                    timeoutInSecond:
-                      description: TimeoutInSecond is the maximal allowed time in second of the entire backup process.
-                      type: integer
-                    backupIntervalInSecond:
-                      description: BackupIntervalInSecond is to specify how often operator take snapshot
-                                   0 is magic number to indicate one-shot backup
-                      type: integer
-                    maxBackups:
-                      description: MaxBackups is to specify how many backups we want to keep
-                                   0 is magic number to indicate un-limited backups
-                      type: integer
                 s3:
                   description: S3 defines the S3 backup source spec.
                   type: object
@@ -148,34 +123,27 @@ spec:
                            "https://oss-cn-hangzhou.aliyuncs.com".
                            Details about regions and endpoints, see: https://www.alibabacloud.com/help/doc-detail/31837.htm'
                       type: string
-                clientTLSSecret:
-                  description: 'ClientTLSSecret is the secret containing the etcd TLS client certs and
-                       must contain the following data items:
-                       data:
-                          "etcd-client.crt": <pem-encoded-cert>
-                          "etcd-client.key": <pem-encoded-key>
-                          "etcd-client-ca.crt": <pem-encoded-ca-cert>'
-                  type: string
+                etcdCluster:
+                  description: 'EtcdCluster references an EtcdCluster resource whose metadata and spec
+	                          will be used to create the new restored EtcdCluster CR.
+	                          This reference EtcdCluster CR and all its resources will be deleted before the
+	                          restored EtcdCluster CR is created.'
+                  type: object
+                  properties:
+                    name:
+                      description: Name is the EtcdCluster resource name.
+                                   This reference EtcdCluster must be present in the same namespace as the restore-operator
+                      type: string
               type: object
             status:
-              description: BackupStatus represents the status of the EtcdBackup Custom Resource.
+              description:
               type: object
               properties:
                 succeeded:
                   description: Succeeded indicates if the backup has Succeeded.
                   type: boolean
-                Reason:
+                reason:
                   description: Reason indicates the reason for any backup related failures.
-                  type: string
-                etcdVersion:
-                  description: EtcdVersion is the version of the backup etcd server.
-                  type: string
-                etcdRevision:
-                  description: EtcdRevision is the revision of etcd's KV store where the backup is performed on.
-                  type: string
-                lastSuccessDate:
-                  description: LastSuccessDate indicate the time to get snapshot last time
-                  format: date-time
                   type: string
           required:
             - spec

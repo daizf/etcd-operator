@@ -14,7 +14,7 @@ spec:
     - name: v1beta2
       schema:
         openAPIV3Schema:
-          description: A Composition specifies how a composite resource should be composed.
+          description: EtcdClusterSpec contains a create specification for an etcd cluster.
           properties:
             apiVersion:
               description: 'APIVersion defines the versioned schema of this representation
@@ -1213,6 +1213,87 @@ spec:
                           description: 'OperatorSecret is the secret containing TLS certs used by operator to talk securely to this cluster.'
                           type: string
               type: object
+            status:
+              type: object
+              properties:
+                phase:
+                  description: 'Phase is the cluster running phase'
+                  type: string
+                  enum:
+                    - ""
+                    - "Creating"
+                    - "Running"
+                    - "Failed"
+                reason:
+                  type: string
+                controlPaused:
+                  type: boolean
+                  description: ControlPuased indicates the operator pauses the control of the cluster.
+                conditions:
+                  description: Condition keeps track of all cluster conditions, if they exist.
+                  type: array
+                  items:
+                    type: object
+                  properties:
+                    type:
+                      description: Type of cluster condition.
+                      type: string
+                      enum:
+                        - "Available"
+                        - "Recovering"
+                        - "Scaling"
+                        - "Upgrading"
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                      enum:
+                        - "True"
+                        - "False"
+                        - "Unknown"
+                    lastUpdateTime:
+                      description: The last time this condition was updated.
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status to another.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      type: string
+                    message:
+                      description: A human readable message indicating details about the transition.
+                      type: string
+                size:
+                  type: integer
+                  description: Size is the current size of the cluster
+                serviceName:
+                  type: string
+                  description: ServiceName is the LB service for accessing etcd nodes.
+                clientPort:
+                  type: integer
+                  description: ClientPort is the port for etcd client to access.
+                               It's the same on client LB service and etcd nodes.
+                members:
+                  type: object
+                  description: Members are the etcd members in the cluster
+                  properties:
+                    ready:
+                      description: Ready are the etcd members that are ready to serve requests
+                                   The member names are the same as the etcd pod names
+                      type: array
+                      items:
+                        type: string
+                    unready:
+                      description: Unready are the etcd members not ready to serve requests
+                      type: array
+                      items:
+                        type: string
+                currentVersion:
+                  type: string
+                  description: CurrentVersion is the current cluster version
+                targetVersion:
+                  type: string
+                  description: TargetVersion is the version the cluster upgrading to.
+                               If the cluster is not upgrading, TargetVersion is empty.
           required:
             - spec
           type: object
