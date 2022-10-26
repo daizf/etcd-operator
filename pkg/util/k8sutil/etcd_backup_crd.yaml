@@ -171,10 +171,10 @@ spec:
                   type: string
                 etcdVersion:
                   description: EtcdVersion is the version of the backup etcd server.
-                  type: string
+                  type: integer
                 etcdRevision:
                   description: EtcdRevision is the revision of etcd's KV store where the backup is performed on.
-                  type: string
+                  type: integer
                 lastSuccessDate:
                   description: LastSuccessDate indicate the time to get snapshot last time
                   format: date-time
