@@ -14,7 +14,8 @@ spec:
     - name: v1beta2
       schema:
         openAPIV3Schema:
-          description: A Configuration is the description of a Crossplane Configuration package.
+          x-kubernetes-preserve-unknown-fields: true
+          description: EtcdBackupSpec contains a create specification for an etcd cluster backup.
           properties:
             apiVersion:
               description: 'APIVersion defines the versioned schema of this representation

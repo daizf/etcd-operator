@@ -16,6 +16,7 @@ spec:
     - name: v1beta2
       schema:
         openAPIV3Schema:
+          x-kubernetes-preserve-unknown-fields: true
           description: EtcdClusterSpec contains a create specification for an etcd cluster.
           properties:
             apiVersion:
