@@ -68,7 +68,7 @@ func init() {
 	flag.BoolVar(&printVersion, "version", false, "Show version and quit")
 	flag.BoolVar(&createCRD, "create-crd", true, "The operator will not create the EtcdCluster CRD when this flag is set to false.")
 	flag.DurationVar(&gcInterval, "gc-interval", 10*time.Minute, "GC interval")
-	flag.BoolVar(&clusterWide, "cluster-wide", false, "Enable operator to watch clusters in all namespaces")
+	flag.BoolVar(&clusterWide, "cluster-wide", false, "Enable operator to watch clusters in all namespaces.")
 	flag.Parse()
 }
 
@@ -94,6 +94,8 @@ func main() {
 	logrus.Infof("Git SHA: %s", version.GitSHA)
 	logrus.Infof("Go Version: %s", runtime.Version())
 	logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
+	logrus.Infof("Create crd: %t", createCRD)
+	logrus.Infof("Cluster wide: %t", clusterWide)
 
 	id, err := os.Hostname()
 	if err != nil {
@@ -110,7 +112,7 @@ func main() {
 		namespace,
 		"etcd-operator",
 		kubecli.CoreV1(),
-                kubecli.CoordinationV1(),
+		kubecli.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: createRecorder(kubecli, name, namespace),

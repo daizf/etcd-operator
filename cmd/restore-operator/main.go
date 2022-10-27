@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"runtime"
 	"time"
@@ -38,8 +39,9 @@ import (
 )
 
 var (
-	namespace string
-	createCRD bool
+	namespace   string
+	createCRD   bool
+	clusterWide bool
 )
 
 const (
@@ -49,6 +51,7 @@ const (
 
 func init() {
 	flag.BoolVar(&createCRD, "create-crd", true, "The restore operator will not create the EtcdRestore CRD when this flag is set to false.")
+	flag.BoolVar(&clusterWide, "cluster-wide", false, "Enable operator to watch clusters in all namespaces.")
 	flag.Parse()
 }
 
@@ -70,6 +73,8 @@ func main() {
 	logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
 	logrus.Infof("etcd-restore-operator Version: %v", version.Version)
 	logrus.Infof("Git SHA: %s", version.GitSHA)
+	logrus.Infof("Create crd: %t", createCRD)
+	logrus.Infof("Cluster wide: %t", clusterWide)
 
 	kubecli := k8sutil.MustNewKubeClient()
 
@@ -120,7 +125,11 @@ func createRecorder(kubecli kubernetes.Interface, name, namespace string) record
 func run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	c := controller.New(createCRD, namespace, fmt.Sprintf("%s:%d", serviceNameForMyself, servicePortForMyself))
+	ns := namespace
+	if clusterWide {
+		ns = metav1.NamespaceAll
+	}
+	c := controller.New(createCRD, ns, fmt.Sprintf("%s:%d", serviceNameForMyself, servicePortForMyself))
 	err := c.Start(ctx)
 	if err != nil {
 		logrus.Fatalf("etcd restore operator stopped with error: %v", err)
