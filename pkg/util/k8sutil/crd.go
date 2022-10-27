@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"time"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
@@ -52,94 +54,20 @@ func listClustersURI(ns string) string {
 	return fmt.Sprintf("/apis/%s/namespaces/%s/%s", api.SchemeGroupVersion.String(), ns, api.EtcdClusterResourcePlural)
 }
 
-func CreateCRD(clientset apiextensionsclient.Interface, crdName, rkind, rplural, shortName string) error {
-	crd := &apiextensionsv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: crdName,
-		},
-		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
-			Group: api.SchemeGroupVersion.Group,
-			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
-				{
-					Name:    "v1beta2",
-					Served:  true,
-					Storage: true,
-					Schema: &apiextensionsv1.CustomResourceValidation{
-						// TODO define each crd's OpenAPIV3Schema
-						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
-							Type: "object",
-							Properties: map[string]apiextensionsv1.JSONSchemaProps{
-								"spec": {
-									Type: "object",
-									Properties: map[string]apiextensionsv1.JSONSchemaProps{
-										"size": {
-											Type:        "integer",
-											Minimum:     float64Ptr(1),
-											Maximum:     float64Ptr(7),
-											Description: "Size is the expected size of the etcd cluster.The etcd-operator will eventually make the size of the running",
-										},
-										"repository": {
-											Type: "string",
-											Description: "Repository is the name of the repository that hosts etcd container images. " +
-												"It should be direct clone of the repository in official release: https://github.com/coreos/etcd/releases" +
-												"By default, it is `quay.io/coreos/etcd`.",
-										},
-										"version": {
-											Type:        "string",
-											Description: "Version is the expected version of the etcd cluster. If version is not set, default is \"3.2.13\".",
-										},
-										"paused": {
-											Type:        "bool",
-											Description: "Paused is to pause the control of the operator for the etcd cluster.",
-										},
-										"TLS": {
-											Type:        "object",
-											Description: "etcd cluster TLS configuration",
-											Properties: map[string]apiextensionsv1.JSONSchemaProps{
-												"static": {
-													Type:        "object",
-													Description: "StaticTLS enables user to generate static x509 certificates and keys, put them into Kubernetes secrets, and specify them into here.",
-													Properties: map[string]apiextensionsv1.JSONSchemaProps{
-														"member": {
-															Type:        "object",
-															Description: "Member contains secrets containing TLS certs used by each etcd member pod.",
-															Properties: map[string]apiextensionsv1.JSONSchemaProps{
-																"peerSecret": {
-																	Type:        "string",
-																	Description: "PeerSecret is the secret containing TLS certs used by each etcd member pod for the communication between etcd peers.",
-																},
-																"serverSecret": {
-																	Type:        "string",
-																	Description: "ServerSecret is the secret containing TLS certs used by each etcd member pod for the communication between etcd server and its clients.",
-																},
-															},
-														},
-														"operatorSecret": {
-															Type:        "string",
-															Description: "OperatorSecret is the secret containing TLS certs used by operator to talk securely to this cluster.",
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			Scope: apiextensionsv1.NamespaceScoped,
-			Names: apiextensionsv1.CustomResourceDefinitionNames{
-				Plural: rplural,
-				Kind:   rkind,
-			},
-		},
+func CreateCRD(clientset apiextensionsclient.Interface, rplural, shortName string) error {
+	crdYaml, err := ioutil.ReadFile(rplural + "_crd.yaml")
+	if err != nil {
+		return err
+	}
+	v1Crd := apiextensionsv1.CustomResourceDefinition{}
+	err = yaml.Unmarshal(crdYaml, &v1Crd)
+	if err != nil {
+		return err
 	}
 	if len(shortName) != 0 {
-		crd.Spec.Names.ShortNames = []string{shortName}
+		v1Crd.Spec.Names.ShortNames = []string{shortName}
 	}
-	_, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), crd, metav1.CreateOptions{})
+	_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), &v1Crd, metav1.CreateOptions{})
 	if err != nil && !IsKubernetesResourceAlreadyExistError(err) {
 		return err
 	}
@@ -178,12 +106,4 @@ func MustNewKubeExtClient() apiextensionsclient.Interface {
 		panic(err)
 	}
 	return apiextensionsclient.NewForConfigOrDie(cfg)
-}
-
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func int64Ptr(f int64) *int64 {
-	return &f
 }

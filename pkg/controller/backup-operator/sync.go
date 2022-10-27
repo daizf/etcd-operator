@@ -168,6 +168,7 @@ func (b *Backup) removeFinalizerOfPeriodicBackup(eb *api.EtcdBackup) error {
 }
 
 func (b *Backup) periodicRunnerFunc(ctx context.Context, t *time.Ticker, eb *api.EtcdBackup) {
+	b.logger.Infof("periodic backup: (%s/%s) for cluster: (%v) start running...", eb.Namespace, eb.Name, eb.Spec.EtcdEndpoints)
 	defer t.Stop()
 	for {
 		select {

@@ -82,7 +82,7 @@ func (b *Backup) Start(ctx context.Context) error {
 }
 
 func (b *Backup) initCRD() error {
-	err := k8sutil.CreateCRD(b.kubeExtCli, api.EtcdBackupCRDName, api.EtcdBackupResourceKind, api.EtcdBackupResourcePlural, "")
+	err := k8sutil.CreateCRD(b.kubeExtCli, api.EtcdBackupResourcePlural, "")
 	if err != nil {
 		return fmt.Errorf("failed to create CRD: %v", err)
 	}
