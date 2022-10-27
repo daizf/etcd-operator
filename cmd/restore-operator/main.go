@@ -83,7 +83,7 @@ func main() {
 		namespace,
 		"etcd-restore-operator",
 		kubecli.CoreV1(),
-                kubecli.CoordinationV1(),
+		kubecli.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: createRecorder(kubecli, name, namespace),

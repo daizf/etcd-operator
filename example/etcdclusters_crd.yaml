@@ -9,6 +9,8 @@ spec:
     listKind: EtcdClusterList
     plural: etcdclusters
     singular: etcdcluster
+    shortNames:
+      - etcd
   scope: Namespaced
   versions:
     - name: v1beta2
