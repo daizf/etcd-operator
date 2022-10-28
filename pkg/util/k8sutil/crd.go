@@ -18,8 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"time"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
@@ -54,20 +52,41 @@ func listClustersURI(ns string) string {
 	return fmt.Sprintf("/apis/%s/namespaces/%s/%s", api.SchemeGroupVersion.String(), ns, api.EtcdClusterResourcePlural)
 }
 
-func CreateCRD(clientset apiextensionsclient.Interface, rplural, shortName string) error {
-	crdYaml, err := ioutil.ReadFile(rplural + "_crd.yaml")
-	if err != nil {
-		return err
-	}
-	v1Crd := apiextensionsv1.CustomResourceDefinition{}
-	err = yaml.Unmarshal(crdYaml, &v1Crd)
-	if err != nil {
-		return err
+func CreateCRD(clientset apiextensionsclient.Interface, crdName, rkind, rplural, shortName string) error {
+	crd := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: crdName,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: api.SchemeGroupVersion.Group,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    "v1beta2",
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						// TODO define each crd's OpenAPIV3Schema
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type: "object",
+						},
+					},
+				},
+			},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Plural: rplural,
+				Kind:   rkind,
+			},
+		},
 	}
 	if len(shortName) != 0 {
-		v1Crd.Spec.Names.ShortNames = []string{shortName}
+		crd.Spec.Names.ShortNames = []string{shortName}
 	}
-	_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), &v1Crd, metav1.CreateOptions{})
+
+	if len(shortName) != 0 {
+		crd.Spec.Names.ShortNames = []string{shortName}
+	}
+	_, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), crd, metav1.CreateOptions{})
 	if err != nil && !IsKubernetesResourceAlreadyExistError(err) {
 		return err
 	}
