@@ -4,6 +4,7 @@ metadata:
   name: etcdbackups.etcd.database.coreos.com
 spec:
   group: etcd.database.coreos.com
+  preserveUnknownFields: false
   names:
     kind: EtcdBackup
     listKind: EtcdBackupList

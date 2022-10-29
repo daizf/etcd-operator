@@ -4,6 +4,7 @@ metadata:
   name: etcdrestores.etcd.database.coreos.com
 spec:
   group: etcd.database.coreos.com
+  preserveUnknownFields: false
   names:
     kind: EtcdRestore
     listKind: EtcdRestoreList

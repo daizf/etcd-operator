@@ -4,6 +4,7 @@ metadata:
   name: etcdclusters.etcd.database.coreos.com
 spec:
   group: etcd.database.coreos.com
+  preserveUnknownFields: false
   names:
     kind: EtcdCluster
     listKind: EtcdClusterList
@@ -91,7 +92,6 @@ spec:
                                       for the pod to be scheduled on that node. 
                                       More info: https:kubernetes.io/docs/concepts/configuration/assign-pod-node/'
                       type: object
-
                     affinity:
                       description: If specified, the pod's scheduling constraints
                       properties:
@@ -917,7 +917,33 @@ spec:
                               type: array
                           type: object
                       type: object
-
+                    resources:
+                      description: 'Compute Resources required by this container. Cannot
+                        be updated. More info: https:kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      properties:
+                        limits:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: 'Limits describes the maximum amount of compute resources
+                            allowed. More info: https:kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          type: object
+                        requests:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: 'Requests describes the minimum amount of compute
+                            resources required. If Requests is omitted for a container,
+                            it defaults to Limits if that is explicitly specified, otherwise
+                            to an implementation-defined value. More info: https:kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          type: object
+                      type: object
                     tolerations:
                       description: If specified, the pod's tolerations.
                       items:
@@ -1201,7 +1227,6 @@ spec:
                                           retrieve arbitrary metadata. They are not queryable and should
                                           be preserved when modifying objects. More info: http:kubernetes.io/docs/user-guide/annotations'
                       type: object
-
                     busyboxImage:
                       description: 'busybox init container image. default is busybox:1.28.0-glibc
                                       busybox:latest uses uclibc which contains a bug that sometimes prevents name resolution
@@ -1211,7 +1236,6 @@ spec:
                       description: 'Curl init container image. default is daizf/curl:latest
                       This image is used to download the backup files.'
                       type: string
-
                     securityContext:
                       description: 'PodSecurityContext holds pod-level security attributes
                                       and common container settings. Optional: Defaults to empty.  See
@@ -1284,33 +1308,6 @@ spec:
                               description: User is a SELinux user label that applies to
                                 the container.
                               type: string
-                          type: object
-                      type: object
-                    resources:
-                      description: 'Compute Resources required by this container. Cannot
-                        be updated. More info: https:kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
-                      properties:
-                        limits:
-                          additionalProperties:
-                            anyOf:
-                              - type: integer
-                              - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: 'Limits describes the maximum amount of compute resources
-                            allowed. More info: https:kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
-                          type: object
-                        requests:
-                          additionalProperties:
-                            anyOf:
-                              - type: integer
-                              - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: 'Requests describes the minimum amount of compute
-                            resources required. If Requests is omitted for a container,
-                            it defaults to Limits if that is explicitly specified, otherwise
-                            to an implementation-defined value. More info: https:kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                           type: object
                       type: object
                     DNSTimeoutInSecond:
