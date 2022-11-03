@@ -180,7 +180,7 @@ func (b *Backup) periodicRunnerFunc(ctx context.Context, t *time.Ticker, eb *api
 			var err error
 			retryLimit := 5
 			for i := 1; i < retryLimit+1; i++ {
-				latestEb, err = b.backupCRCli.EtcdV1beta2().EtcdBackups(b.namespace).Get(context.TODO(), eb.Name, metav1.GetOptions{})
+				latestEb, err = b.backupCRCli.EtcdV1beta2().EtcdBackups(eb.Namespace).Get(context.TODO(), eb.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						b.logger.Infof("Could not find EtcdBackup. Stopping periodic backup for EtcdBackup CR %v",
@@ -215,7 +215,7 @@ func (b *Backup) reportBackupStatus(bs *api.BackupStatus, berr error, eb *api.Et
 		eb.Status.EtcdVersion = bs.EtcdVersion
 		eb.Status.LastSuccessDate = bs.LastSuccessDate
 	}
-	_, err := b.backupCRCli.EtcdV1beta2().EtcdBackups(b.namespace).Update(context.TODO(), eb, metav1.UpdateOptions{})
+	_, err := b.backupCRCli.EtcdV1beta2().EtcdBackups(eb.Namespace).Update(context.TODO(), eb, metav1.UpdateOptions{})
 	if err != nil {
 		b.logger.Warningf("failed to update status of backup CR %v : (%v)", eb.Name, err)
 	}

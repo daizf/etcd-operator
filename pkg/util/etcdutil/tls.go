@@ -16,10 +16,9 @@ package etcdutil
 
 import (
 	"crypto/tls"
+	"go.etcd.io/etcd/client/pkg/v3/transport"
 	"io/ioutil"
 	"path/filepath"
-
-	"github.com/coreos/etcd/pkg/transport"
 )
 
 const (

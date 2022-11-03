@@ -18,10 +18,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-
 	"github.com/coreos/etcd-operator/pkg/util/constants"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/sirupsen/logrus"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func initClient(clientURLs []string, tc *tls.Config) (*clientv3.Client, error) {
@@ -81,6 +80,7 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 		// TODO: update clientv3 to 3.2.x and then use ctx as in clientv3.Config.
 		etcdcli, err := initClient([]string{endpoint}, tc)
 		if err != nil {
+			logrus.Errorf("initClient: endpoint %s, error: %v", endpoint, err)
 			errors = append(errors, fmt.Sprintf("failed to create etcd client for endpoint (%v): %v", endpoint, err))
 			continue
 		}
@@ -88,6 +88,7 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 
 		resp, err := etcdcli.Get(ctx, "/", clientv3.WithSerializable())
 		if err != nil {
+			logrus.Errorf("getMaxRev: endpoint %s, error: %v", endpoint, err)
 			errors = append(errors, fmt.Sprintf("failed to get revision from endpoint (%s)", endpoint))
 			continue
 		}

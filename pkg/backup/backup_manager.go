@@ -22,8 +22,9 @@ import (
 	"time"
 
 	"github.com/coreos/etcd-operator/pkg/backup/writer"
-        "github.com/coreos/etcd-operator/pkg/util/etcdutil"
-	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
+
+	clientv3 "go.etcd.io/etcd/client/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -104,8 +105,8 @@ func (bm *BackupManager) EnsureMaxBackup(ctx context.Context, basePath string, m
 // and returns the etcd client of that member.
 func (bm *BackupManager) etcdClientWithMaxRevision(ctx context.Context) (*clientv3.Client, int64, error) {
 	etcdcli, rev, err := etcdutil.ClientWithMaxRev(ctx, bm.endpoints, bm.etcdTLSConfig)
-        if err != nil {
+	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get etcd client with maximum kv store revision: %v", err)
 	}
-        return etcdcli, rev, nil
+	return etcdcli, rev, nil
 }

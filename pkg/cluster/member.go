@@ -19,8 +19,8 @@ import (
 
 	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
 	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
-	"github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"github.com/pkg/errors"
+	"go.etcd.io/etcd/api/v3/etcdserverpb"
 
 	"k8s.io/api/core/v1"
 )
