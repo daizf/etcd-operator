@@ -43,6 +43,7 @@ spec:
                   type: array
                   items:
                     type: string
+                  minItems: 1
                 storageType:
                   description: StorageType is the etcd backup storage type.
                                   We need this field because CRD doesn't support validation against invalid fields
@@ -60,14 +61,17 @@ spec:
                     timeoutInSecond:
                       description: TimeoutInSecond is the maximal allowed time in second of the entire backup process.
                       type: integer
+                      format: int32
                     backupIntervalInSecond:
                       description: BackupIntervalInSecond is to specify how often operator take snapshot
                                    0 is magic number to indicate one-shot backup
                       type: integer
+                      format: int32
                     maxBackups:
                       description: MaxBackups is to specify how many backups we want to keep
                                    0 is magic number to indicate un-limited backups
                       type: integer
+                      format: int32
                 s3:
                   description: S3 defines the S3 backup source spec.
                   type: object
@@ -181,6 +185,7 @@ spec:
                   description: LastSuccessDate indicate the time to get snapshot last time
                   format: date-time
                   type: string
+                  nullable: true
           required:
             - spec
           type: object

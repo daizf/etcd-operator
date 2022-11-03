@@ -23,51 +23,51 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func initClient(clientURLs []string, tc *tls.Config) (*clientv3.Client, error) {
+func initClient(ctx context.Context, clientURLs []string, tc *tls.Config) (*clientv3.Client, error) {
 	cfg := clientv3.Config{
 		Endpoints:   clientURLs,
 		DialTimeout: constants.DefaultDialTimeout,
 		TLS:         tc,
+		Context:     ctx,
 	}
 	return clientv3.New(cfg)
 }
 
 func AddMember(clientURLs []string, tc *tls.Config, peerURLs []string) (*clientv3.MemberAddResponse, error) {
-	etcdcli, err := initClient(clientURLs, tc)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	defer cancel()
+	etcdcli, err := initClient(ctx, clientURLs, tc)
+	defer etcdcli.Close()
 	if err != nil {
 		return nil, fmt.Errorf("add one member failed: creating etcd client failed %v", err)
 	}
-	defer etcdcli.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
 	resp, err := etcdcli.MemberAdd(ctx, peerURLs)
-	cancel()
 	etcdcli.Close()
 	return resp, err
 }
 
 func ListMembers(clientURLs []string, tc *tls.Config) (*clientv3.MemberListResponse, error) {
-	etcdcli, err := initClient(clientURLs, tc)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	defer cancel()
+	etcdcli, err := initClient(ctx, clientURLs, tc)
 	if err != nil {
 		return nil, fmt.Errorf("list members failed: creating etcd client failed: %v", err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	defer etcdcli.Close()
 	resp, err := etcdcli.MemberList(ctx)
-	cancel()
 	etcdcli.Close()
 	return resp, err
 }
 
 func RemoveMember(clientURLs []string, tc *tls.Config, id uint64) error {
-	etcdcli, err := initClient(clientURLs, tc)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
+	defer cancel()
+	etcdcli, err := initClient(ctx, clientURLs, tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("remove members failed: creating etcd client failed: %v", err)
 	}
 	defer etcdcli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultRequestTimeout)
 	_, err = etcdcli.Cluster.MemberRemove(ctx, id)
-	cancel()
 	return err
 }
 
@@ -77,10 +77,8 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 	maxRev := int64(0)
 	errors := make([]string, 0)
 	for _, endpoint := range endpoints {
-		// TODO: update clientv3 to 3.2.x and then use ctx as in clientv3.Config.
-		etcdcli, err := initClient([]string{endpoint}, tc)
+		etcdcli, err := initClient(ctx, []string{endpoint}, tc)
 		if err != nil {
-			logrus.Errorf("initClient: endpoint %s, error: %v", endpoint, err)
 			errors = append(errors, fmt.Sprintf("failed to create etcd client for endpoint (%v): %v", endpoint, err))
 			continue
 		}
@@ -88,7 +86,6 @@ func ClientWithMaxRev(ctx context.Context, endpoints []string, tc *tls.Config) (
 
 		resp, err := etcdcli.Get(ctx, "/", clientv3.WithSerializable())
 		if err != nil {
-			logrus.Errorf("getMaxRev: endpoint %s, error: %v", endpoint, err)
 			errors = append(errors, fmt.Sprintf("failed to get revision from endpoint (%s)", endpoint))
 			continue
 		}
