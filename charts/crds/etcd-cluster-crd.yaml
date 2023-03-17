@@ -7,7 +7,6 @@ metadata:
   labels:
     app: etcd-operator.name
   annotations:
-    helm.sh/hook: crd-install
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
   group: etcd.database.coreos.com

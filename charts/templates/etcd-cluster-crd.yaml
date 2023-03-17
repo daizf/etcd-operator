@@ -6,8 +6,8 @@ metadata:
   name: {{ .Values.etcdCluster.name }}
   labels:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    app: {{ template "etcd-operator.name" . }}
-    heritage: {{ .Release.Service }}
+    app.kubernetes.io/name: {{ template "etcd-operator.name" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
     release: {{ .Release.Name }}
 spec:
   size: {{ .Values.etcdCluster.size }}

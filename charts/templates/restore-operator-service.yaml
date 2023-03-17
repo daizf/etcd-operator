@@ -6,8 +6,8 @@ metadata:
   name: {{ .Values.restoreOperator.name }}
   labels:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    app: {{ template "etcd-restore-operator.name" . }}
-    heritage: {{ .Release.Service }}
+    app.kubernetes.io/name: {{ template "etcd-restore-operator.name" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
     release: {{ .Release.Name }}
 spec:
   ports:
