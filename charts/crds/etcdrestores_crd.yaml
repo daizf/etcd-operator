@@ -3,7 +3,8 @@ kind: CustomResourceDefinition
 metadata:
   name: etcdrestores.etcd.database.coreos.com
   labels:
-    app: etcd-restore.name
+    app: etcd-restore-operator
+    app.kubernetes.io/managed-by: helm
   annotations:
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
