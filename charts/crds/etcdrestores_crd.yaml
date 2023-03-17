@@ -4,7 +4,7 @@ metadata:
   name: etcdrestores.etcd.database.coreos.com
   labels:
     app: etcd-restore-operator
-    app.kubernetes.io/managed-by: helm
+    app.kubernetes.io/managed-by: Helm
   annotations:
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
