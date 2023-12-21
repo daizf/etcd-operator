@@ -107,7 +107,7 @@ func (b *Backup) processItem(key string) error {
 
 	} else if !isPeriodic {
 		// Perform backup
-		bs, err := b.handleBackup(nil, &eb.Spec, false)
+		bs, err := b.handleBackup(nil, eb, false)
 		// Report backup status
 		b.reportBackupStatus(bs, err, eb)
 	}
@@ -196,7 +196,7 @@ func (b *Backup) periodicRunnerFunc(ctx context.Context, t *time.Ticker, eb *api
 			}
 			if err == nil {
 				// Perform backup
-				bs, err = b.handleBackup(&ctx, &latestEb.Spec, true)
+				bs, err = b.handleBackup(&ctx, latestEb, true)
 			}
 			// Report backup status
 			b.reportBackupStatus(bs, err, latestEb)
@@ -245,7 +245,8 @@ func (b *Backup) handleErr(err error, key interface{}) {
 	b.logger.Infof("Dropping etcd backup (%v) out of the queue: %v", key, err)
 }
 
-func (b *Backup) handleBackup(parentContext *context.Context, spec *api.BackupSpec, isPeriodic bool) (*api.BackupStatus, error) {
+func (b *Backup) handleBackup(parentContext *context.Context, eb *api.EtcdBackup, isPeriodic bool) (*api.BackupStatus, error) {
+	spec := &eb.Spec
 	err := validate(spec)
 	if err != nil {
 		return nil, err
@@ -270,28 +271,28 @@ func (b *Backup) handleBackup(parentContext *context.Context, spec *api.BackupSp
 	switch spec.StorageType {
 	case api.BackupStorageTypeS3:
 		bs, err := handleS3(ctx, b.kubecli, spec.S3, spec.EtcdEndpoints, spec.ClientTLSSecret,
-			b.namespace, isPeriodic, backupMaxCount)
+			eb.Namespace, isPeriodic, backupMaxCount)
 		if err != nil {
 			return nil, err
 		}
 		return bs, nil
 	case api.BackupStorageTypeABS:
 		bs, err := handleABS(ctx, b.kubecli, spec.ABS, spec.EtcdEndpoints, spec.ClientTLSSecret,
-			b.namespace, isPeriodic, backupMaxCount)
+			eb.Namespace, isPeriodic, backupMaxCount)
 		if err != nil {
 			return nil, err
 		}
 		return bs, nil
 	case api.BackupStorageTypeGCS:
 		bs, err := handleGCS(ctx, b.kubecli, spec.GCS, spec.EtcdEndpoints, spec.ClientTLSSecret,
-			b.namespace, isPeriodic, backupMaxCount)
+			eb.Namespace, isPeriodic, backupMaxCount)
 		if err != nil {
 			return nil, err
 		}
 		return bs, nil
 	case api.BackupStorageTypeOSS:
 		bs, err := handleOSS(ctx, b.kubecli, spec.OSS, spec.EtcdEndpoints, spec.ClientTLSSecret,
-			b.namespace, isPeriodic, backupMaxCount)
+			eb.Namespace, isPeriodic, backupMaxCount)
 		if err != nil {
 			return nil, err
 		}
