@@ -5,13 +5,23 @@ metadata:
 spec:
   selector:
       matchLabels:
-        name: etcd-operator
-  replicas: 1
+        app: etcd-operator
+  replicas: 2
   template:
     metadata:
       labels:
-        name: etcd-operator
+        app: etcd-operator
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - etcd-operator
+            topologyKey: kubernetes.io/hostname
       containers:
       - name: etcd-operator
         image: daizf/etcd-operator:v0.21.14

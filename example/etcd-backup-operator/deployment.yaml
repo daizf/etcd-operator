@@ -2,19 +2,33 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: etcd-backup-operator
+  labels:
+    app: etcd-backup-operator
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      name: etcd-backup-operator
+      app: etcd-backup-operator
   template:
     metadata:
       labels:
-        name: etcd-backup-operator
+        app: etcd-backup-operator
     spec:
+      nodeSelector:
+        esk.ecloud.10086.cn/apps: "true"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - etcd-backup-operator
+            topologyKey: kubernetes.io/hostname
       containers:
       - name: etcd-backup-operator
-        image: daizf/etcd-operator:v0.21.14
+        image: cis-hub-fujian-1.cmecloud.cn/dzf/etcd-operator:v0.21.14
         command:
         - etcd-backup-operator
         - -create-crd=false
