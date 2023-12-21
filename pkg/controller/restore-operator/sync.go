@@ -186,7 +186,7 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 		return fmt.Errorf("failed to create restored EtcdCluster (%s/%s): %v", r.namespace, clusterName, err)
 	}
 
-	err = r.createSeedMember(ec, r.mySvcAddr, clusterName, ec.AsOwner())
+	err = r.createSeedMember(ec, r.mySvcAddr, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed to create seed member for cluster (%s): %v", clusterName, err)
 	}
@@ -213,7 +213,7 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 	return nil
 }
 
-func (r *Restore) createSeedMember(ec *api.EtcdCluster, svcAddr, clusterName string, owner metav1.OwnerReference) error {
+func (r *Restore) createSeedMember(ec *api.EtcdCluster, svcAddr, clusterName string) error {
 	m := &etcdutil.Member{
 		Name:         k8sutil.UniqueMemberName(clusterName),
 		Namespace:    ec.Namespace,
@@ -226,8 +226,11 @@ func (r *Restore) createSeedMember(ec *api.EtcdCluster, svcAddr, clusterName str
 	ms := etcdutil.NewMemberSet(m)
 	backupURL := backupapi.BackupURLForRestore("http", svcAddr, clusterName)
 	ec.SetDefaults()
-	pod := k8sutil.NewSeedMemberPod(clusterName, ms, m, ec.Spec, owner, backupURL)
-	_, err := r.kubecli.CoreV1().Pods(ec.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	pod, err := k8sutil.NewSeedMemberPod(r.kubecli, clusterName, ms, m, ec, backupURL)
+	if err != nil {
+		return fmt.Errorf("failed to new seed member pod (%s): %v", m.Name, err)
+	}
+	_, err = r.kubecli.CoreV1().Pods(ec.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	return err
 }
 

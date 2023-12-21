@@ -101,7 +101,8 @@ func PVCNameFromMember(memberName string) string {
 	return memberName
 }
 
-func makeRestoreInitContainers(backupURL *url.URL, token string, cs api.ClusterSpec, m *etcdutil.Member) []v1.Container {
+func makeRestoreInitContainers(backupURL *url.URL, token string, ec *api.EtcdCluster, m *etcdutil.Member) []v1.Container {
+	cs := ec.Spec
 	return []v1.Container{
 		{
 			Name:  "fetch-backup",
@@ -109,13 +110,13 @@ func makeRestoreInitContainers(backupURL *url.URL, token string, cs api.ClusterS
 			Command: []string{
 				"/bin/bash", "-ec",
 				fmt.Sprintf(`
-httpcode=$(curl --write-out %%\{http_code\} --silent --output %[1]s %[2]s)
+httpcode=$(curl --write-out %%\{http_code\} --silent --output %[1]s %[2]s%[3]s)
 if [[ "$httpcode" != "200" ]]; then
 	echo "http status code: ${httpcode}" >> /dev/termination-log
 	cat %[1]s >> /dev/termination-log
 	exit 1
 fi
-					`, backupFile, backupURL.String()),
+					`, backupFile, backupURL.String(), "?ns="+ec.Namespace),
 			},
 			VolumeMounts: etcdVolumeMounts(),
 		},
@@ -268,9 +269,9 @@ func AddEtcdVolumeToPod(pod *v1.Pod, pvc *v1.PersistentVolumeClaim) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, vol)
 }
 
-func addRecoveryToPod(pod *v1.Pod, token string, m *etcdutil.Member, cs api.ClusterSpec, backupURL *url.URL) {
+func addRecoveryToPod(pod *v1.Pod, token string, m *etcdutil.Member, ec *api.EtcdCluster, backupURL *url.URL) {
 	pod.Spec.InitContainers = append(pod.Spec.InitContainers,
-		makeRestoreInitContainers(backupURL, token, cs, m)...)
+		makeRestoreInitContainers(backupURL, token, ec, m)...)
 }
 
 func addOwnerRefToObject(o metav1.Object, r metav1.OwnerReference) {
@@ -279,17 +280,26 @@ func addOwnerRefToObject(o metav1.Object, r metav1.OwnerReference) {
 
 // NewSeedMemberPod returns a Pod manifest for a seed member.
 // It's special that it has new token, and might need recovery init containers
-func NewSeedMemberPod(clusterName string, ms etcdutil.MemberSet, m *etcdutil.Member, cs api.ClusterSpec, owner metav1.OwnerReference, backupURL *url.URL) *v1.Pod {
+func NewSeedMemberPod(kubecli kubernetes.Interface, clusterName string, ms etcdutil.MemberSet, m *etcdutil.Member, ec *api.EtcdCluster, backupURL *url.URL) (*v1.Pod, error) {
 	token := uuid.New()
-	pod := newEtcdPod(m, ms.PeerURLPairs(), clusterName, "new", token, cs)
-	// TODO: PVC datadir support for restore process
-	AddEtcdVolumeToPod(pod, nil)
+	pod := newEtcdPod(m, ms.PeerURLPairs(), clusterName, "new", token, ec.Spec)
 	if backupURL != nil {
-		addRecoveryToPod(pod, token, m, cs, backupURL)
+		addRecoveryToPod(pod, token, m, ec, backupURL)
 	}
-	applyPodPolicy(clusterName, pod, cs.Pod)
-	addOwnerRefToObject(pod.GetObjectMeta(), owner)
-	return pod
+
+	var pvc *v1.PersistentVolumeClaim
+	if podPolicy := ec.Spec.Pod; podPolicy != nil && podPolicy.PersistentVolumeClaimSpec != nil {
+		pvc = NewEtcdPodPVC(m, *podPolicy.PersistentVolumeClaimSpec, ec.Name, ec.Namespace, ec.AsOwner())
+		_, err := kubecli.CoreV1().PersistentVolumeClaims(ec.Namespace).Create(context.TODO(), pvc, metav1.CreateOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create PVC for member (%s): %v", m.Name, err)
+		}
+	}
+	AddEtcdVolumeToPod(pod, pvc)
+
+	applyPodPolicy(clusterName, pod, ec.Spec.Pod)
+	addOwnerRefToObject(pod.GetObjectMeta(), ec.AsOwner())
+	return pod, nil
 }
 
 // NewEtcdPodPVC create PVC object from etcd pod's PVC spec

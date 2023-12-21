@@ -64,13 +64,13 @@ func (m *Member) peerScheme() string {
 func (m *Member) ListenClientURL() []string {
 	return []string{
 		fmt.Sprintf("%s://0.0.0.0:2379", m.clientScheme()),
-		fmt.Sprintf("%s://[::]:2379", m.clientScheme()),
+		//fmt.Sprintf("%s://[::]:2379", m.clientScheme()),
 	}
 }
 func (m *Member) ListenPeerURL() []string {
 	return []string{
 		fmt.Sprintf("%s://0.0.0.0:2380", m.peerScheme()),
-		fmt.Sprintf("%s://[::]:2380", m.peerScheme()),
+		//fmt.Sprintf("%s://[::]:2380", m.peerScheme()),
 	}
 }
 

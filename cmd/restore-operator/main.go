@@ -129,7 +129,7 @@ func run(ctx context.Context) {
 	if clusterWide {
 		ns = metav1.NamespaceAll
 	}
-	c := controller.New(createCRD, ns, fmt.Sprintf("%s:%d", serviceNameForMyself, servicePortForMyself))
+	c := controller.New(createCRD, ns, fmt.Sprintf("%s.%s.svc:%d", serviceNameForMyself, namespace, servicePortForMyself))
 	err := c.Start(ctx)
 	if err != nil {
 		logrus.Fatalf("etcd restore operator stopped with error: %v", err)
