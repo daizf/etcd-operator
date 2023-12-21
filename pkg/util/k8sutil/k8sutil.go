@@ -63,7 +63,7 @@ const (
 	MaxNameLength = 63 - randomSuffixLength - 1
 
 	defaultBusyboxImage = "busybox:1.28.0-glibc"
-	defaultCurlImage    = "daizf/curl:latest"
+	defaultCurlImage    = "cis-hub-fujian-1.cmecloud.cn/dzf/curl:latest"
 
 	// AnnotationScope annotation name for defining instance scope. Used for specifying cluster wide clusters.
 	AnnotationScope = "etcd.database.coreos.com/scope"
@@ -101,11 +101,11 @@ func PVCNameFromMember(memberName string) string {
 	return memberName
 }
 
-func makeRestoreInitContainers(backupURL *url.URL, token, repo, version string, m *etcdutil.Member) []v1.Container {
+func makeRestoreInitContainers(backupURL *url.URL, token string, cs api.ClusterSpec, m *etcdutil.Member) []v1.Container {
 	return []v1.Container{
 		{
 			Name:  "fetch-backup",
-			Image: "curl",
+			Image: imageNameCurl(cs.Pod),
 			Command: []string{
 				"/bin/bash", "-ec",
 				fmt.Sprintf(`
@@ -121,7 +121,7 @@ fi
 		},
 		{
 			Name:  "restore-datadir",
-			Image: ImageName(repo, version),
+			Image: ImageName(cs.Repository, cs.Version),
 			Command: []string{
 				"/bin/sh", "-ec",
 				fmt.Sprintf("ETCDCTL_API=3 etcdctl snapshot restore %[1]s"+
@@ -270,7 +270,7 @@ func AddEtcdVolumeToPod(pod *v1.Pod, pvc *v1.PersistentVolumeClaim) {
 
 func addRecoveryToPod(pod *v1.Pod, token string, m *etcdutil.Member, cs api.ClusterSpec, backupURL *url.URL) {
 	pod.Spec.InitContainers = append(pod.Spec.InitContainers,
-		makeRestoreInitContainers(backupURL, token, cs.Repository, cs.Version, m)...)
+		makeRestoreInitContainers(backupURL, token, cs, m)...)
 }
 
 func addOwnerRefToObject(o metav1.Object, r metav1.OwnerReference) {
@@ -310,7 +310,7 @@ func newEtcdPod(m *etcdutil.Member, initialCluster []string, clusterName, state,
 	commands := fmt.Sprintf("/usr/local/bin/etcd --data-dir=%s --name=%s --initial-advertise-peer-urls=%s "+
 		"--listen-peer-urls=%s --listen-client-urls=%s --advertise-client-urls=%s "+
 		"--initial-cluster=%s --initial-cluster-state=%s",
-		dataDir, m.Name, m.PeerURL(), m.ListenPeerURL(), m.ListenClientURL(), m.ClientURL(), strings.Join(initialCluster, ","), state)
+		dataDir, m.Name, m.PeerURL(), strings.Join(m.ListenPeerURL(), ","), strings.Join(m.ListenClientURL(), ","), m.ClientURL(), strings.Join(initialCluster, ","), state)
 	if m.SecurePeer {
 		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/peer-ca.crt --peer-cert-file=%[1]s/peer.crt --peer-key-file=%[1]s/peer.key", peerTLSDir)
 	}
