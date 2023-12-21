@@ -15,8 +15,8 @@
 package controller
 
 import (
+	"context"
 	"fmt"
-        "context"
 
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/backup/backupapi"
@@ -98,7 +98,7 @@ func (r *Restore) reportStatus(rerr error, er *api.EtcdRestore) {
 	} else {
 		er.Status.Succeeded = true
 	}
-	_, err := r.etcdCRCli.EtcdV1beta2().EtcdRestores(r.namespace).Update(context.TODO(), er, metav1.UpdateOptions{})
+	_, err := r.etcdCRCli.EtcdV1beta2().EtcdRestores(er.Namespace).Update(context.TODO(), er, metav1.UpdateOptions{})
 	if err != nil {
 		r.logger.Warningf("failed to update status of restore CR %v : (%v)", er.Name, err)
 	}
@@ -132,14 +132,16 @@ func (r *Restore) handleErr(err error, key interface{}) {
 // - fetches and deletes the reference EtcdCluster CR
 // - creates new EtcdCluster CR with same metadata and spec as the reference CR
 // - and spec.paused=true and status.phase="Running"
-//  - spec.paused=true: keep operator from touching membership
-// 	- status.phase=Running:
-//  	1. expect operator to setup the services
-//  	2. make operator ignore the "create seed member" phase
+//   - spec.paused=true: keep operator from touching membership
+//   - status.phase=Running:
+//     1. expect operator to setup the services
+//     2. make operator ignore the "create seed member" phase
+//
 // - create seed member that would restore data from backup
-// 	- ownerRef to above EtcdCluster CR
+//   - ownerRef to above EtcdCluster CR
+//
 // - update EtcdCluster CR spec.paused=false
-// 	- etcd operator should pick up the membership and scale the etcd cluster
+//   - etcd operator should pick up the membership and scale the etcd cluster
 func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 	defer func() {
 		if err != nil {
@@ -149,7 +151,7 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 
 	// Fetch the reference EtcdCluster
 	ecRef := er.Spec.EtcdCluster
-	ec, err := r.etcdCRCli.EtcdV1beta2().EtcdClusters(r.namespace).Get(context.TODO(), ecRef.Name, metav1.GetOptions{})
+	ec, err := r.etcdCRCli.EtcdV1beta2().EtcdClusters(er.Namespace).Get(context.TODO(), ecRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get reference EtcdCluster(%s/%s): %v", r.namespace, ecRef.Name, err)
 	}
@@ -158,12 +160,12 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 	}
 
 	// Delete reference EtcdCluster
-	err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(r.namespace).Delete(context.TODO(), ecRef.Name, metav1.DeleteOptions{})
+	err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(er.Namespace).Delete(context.TODO(), ecRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete reference EtcdCluster (%s/%s): %v", r.namespace, ecRef.Name, err)
 	}
 	// Need to delete etcd pods, etc. completely before creating new cluster.
-	r.deleteClusterResourcesCompletely(ecRef.Name)
+	r.deleteClusterResourcesCompletely(ecRef.Name, ec.Name)
 
 	// Create the restored EtcdCluster with the same metadata and spec as reference EtcdCluster
 	clusterName := ecRef.Name
@@ -179,7 +181,7 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 
 	ec.Spec.Paused = true
 	ec.Status.Phase = api.ClusterPhaseRunning
-	ec, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(r.namespace).Create(context.TODO(), ec, metav1.CreateOptions{})
+	ec, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(er.Namespace).Create(context.TODO(), ec, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create restored EtcdCluster (%s/%s): %v", r.namespace, clusterName, err)
 	}
@@ -191,12 +193,12 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 
 	// Retry updating the etcdcluster CR spec.paused=false. The etcd-operator will update the CR once so there needs to be a single retry in case of conflict
 	err = retryutil.Retry(2, 1, func() (bool, error) {
-		ec, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(r.namespace).Get(context.TODO(), clusterName, metav1.GetOptions{})
+		ec, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(er.Namespace).Get(context.TODO(), clusterName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 		ec.Spec.Paused = false
-		_, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(r.namespace).Update(context.TODO(), ec, metav1.UpdateOptions{})
+		_, err = r.etcdCRCli.EtcdV1beta2().EtcdClusters(er.Namespace).Update(context.TODO(), ec, metav1.UpdateOptions{})
 		if err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil
@@ -214,7 +216,7 @@ func (r *Restore) prepareSeed(er *api.EtcdRestore) (err error) {
 func (r *Restore) createSeedMember(ec *api.EtcdCluster, svcAddr, clusterName string, owner metav1.OwnerReference) error {
 	m := &etcdutil.Member{
 		Name:         k8sutil.UniqueMemberName(clusterName),
-		Namespace:    r.namespace,
+		Namespace:    ec.Namespace,
 		SecurePeer:   ec.Spec.TLS.IsSecurePeer(),
 		SecureClient: ec.Spec.TLS.IsSecureClient(),
 	}
@@ -225,18 +227,18 @@ func (r *Restore) createSeedMember(ec *api.EtcdCluster, svcAddr, clusterName str
 	backupURL := backupapi.BackupURLForRestore("http", svcAddr, clusterName)
 	ec.SetDefaults()
 	pod := k8sutil.NewSeedMemberPod(clusterName, ms, m, ec.Spec, owner, backupURL)
-	_, err := r.kubecli.CoreV1().Pods(r.namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	_, err := r.kubecli.CoreV1().Pods(ec.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	return err
 }
 
-func (r *Restore) deleteClusterResourcesCompletely(clusterName string) error {
+func (r *Restore) deleteClusterResourcesCompletely(clusterName, namespace string) error {
 	// Delete etcd pods
-	err := r.kubecli.CoreV1().Pods(r.namespace).Delete(context.TODO(), clusterName, metav1.DeleteOptions{})
+	err := r.kubecli.CoreV1().Pods(namespace).Delete(context.TODO(), clusterName, metav1.DeleteOptions{})
 	if err != nil && !k8sutil.IsKubernetesResourceNotFoundError(err) {
 		return fmt.Errorf("failed to delete cluster pods: %v", err)
 	}
 
-	err = r.kubecli.CoreV1().Services(r.namespace).Delete(context.TODO(), clusterName, metav1.DeleteOptions{})
+	err = r.kubecli.CoreV1().Services(namespace).Delete(context.TODO(), clusterName, metav1.DeleteOptions{})
 	if err != nil && !k8sutil.IsKubernetesResourceNotFoundError(err) {
 		return fmt.Errorf("failed to delete cluster services: %v", err)
 	}
