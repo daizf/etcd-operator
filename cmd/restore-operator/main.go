@@ -44,11 +44,6 @@ var (
 	clusterWide bool
 )
 
-const (
-	serviceNameForMyself = "etcd-restore-operator"
-	servicePortForMyself = 19999
-)
-
 func init() {
 	flag.BoolVar(&createCRD, "create-crd", true, "The restore operator will not create the EtcdRestore CRD when this flag is set to false.")
 	flag.BoolVar(&clusterWide, "cluster-wide", false, "Enable operator to watch clusters in all namespaces.")
@@ -129,7 +124,7 @@ func run(ctx context.Context) {
 	if clusterWide {
 		ns = metav1.NamespaceAll
 	}
-	c := controller.New(createCRD, ns, fmt.Sprintf("%s.%s.svc:%d", serviceNameForMyself, namespace, servicePortForMyself))
+	c := controller.New(createCRD, ns, fmt.Sprintf("%s.%s.svc:%d", constants.DefaultBackupServiceName, namespace, constants.DefaultBackupPodHTTPPort))
 	err := c.Start(ctx)
 	if err != nil {
 		logrus.Fatalf("etcd restore operator stopped with error: %v", err)

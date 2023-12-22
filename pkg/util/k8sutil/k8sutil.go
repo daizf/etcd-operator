@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	api "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
+	"github.com/coreos/etcd-operator/pkg/util/constants"
 	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
 	"github.com/coreos/etcd-operator/pkg/util/retryutil"
 	"github.com/pborman/uuid"
@@ -59,11 +60,11 @@ const (
 	operatorEtcdTLSVolume    = "etcd-client-tls"
 
 	randomSuffixLength = 10
-	// k8s object name has a maximum length
+	// MaxNameLength k8s object name has a maximum length
 	MaxNameLength = 63 - randomSuffixLength - 1
 
-	defaultBusyboxImage = "busybox:1.28.0-glibc"
-	defaultCurlImage    = "cis-hub-fujian-1.cmecloud.cn/dzf/curl:latest"
+	defaultBusyboxImage = "daizf/busybox:1.28.0-glibc"
+	defaultCurlImage    = "daizf/curl:latest"
 
 	// AnnotationScope annotation name for defining instance scope. Used for specifying cluster wide clusters.
 	AnnotationScope = "etcd.database.coreos.com/scope"
@@ -146,6 +147,10 @@ func imageNameBusybox(policy *api.PodPolicy) string {
 	if policy != nil && len(policy.BusyboxImage) > 0 {
 		return policy.BusyboxImage
 	}
+	imageName := os.Getenv(constants.EnvBusyboxImage)
+	if len(imageName) != 0 {
+		return imageName
+	}
 	return defaultBusyboxImage
 }
 
@@ -153,6 +158,10 @@ func imageNameBusybox(policy *api.PodPolicy) string {
 func imageNameCurl(policy *api.PodPolicy) string {
 	if policy != nil && len(policy.CurlImage) > 0 {
 		return policy.CurlImage
+	}
+	imageName := os.Getenv(constants.EnvCurlImage)
+	if len(imageName) != 0 {
+		return imageName
 	}
 	return defaultCurlImage
 }

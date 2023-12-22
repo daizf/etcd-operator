@@ -24,10 +24,14 @@ const (
 	DefaultSnapshotInterval = 1800 * time.Second
 
 	DefaultBackupPodHTTPPort = 19999
+	DefaultBackupServiceName = "etcd-restore-operator"
 
 	OperatorRoot   = "/var/tmp/etcd-operator"
 	BackupMountDir = "/var/etcd-backup"
 
 	EnvOperatorPodName      = "MY_POD_NAME"
 	EnvOperatorPodNamespace = "MY_POD_NAMESPACE"
+
+	EnvCurlImage    = "CURL_IMAGE"
+	EnvBusyboxImage = "BUSYBOX_IMAGE"
 )

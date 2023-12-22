@@ -15,8 +15,9 @@
 package main
 
 import (
+	"context"
+	"github.com/coreos/etcd-operator/pkg/util/constants"
 	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
-        "context"
 
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -36,14 +37,14 @@ func createServiceForMyself(kubecli kubernetes.Interface, name, namespace string
 	delete(pod.Labels, "pod-template-hash")
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceNameForMyself,
+			Name:      constants.DefaultBackupServiceName,
 			Namespace: namespace,
 			Labels:    pod.Labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{{
-				Port:       int32(servicePortForMyself),
-				TargetPort: intstr.FromInt(servicePortForMyself),
+				Port:       int32(constants.DefaultBackupPodHTTPPort),
+				TargetPort: intstr.FromInt(constants.DefaultBackupPodHTTPPort),
 				Protocol:   v1.ProtocolTCP,
 			}},
 			Selector: pod.Labels,
