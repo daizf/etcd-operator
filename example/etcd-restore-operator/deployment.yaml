@@ -32,6 +32,7 @@ spec:
         command:
         - etcd-restore-operator
         - -create-crd=false
+        - -cluster-wide
         env:
         - name: MY_POD_NAMESPACE
           valueFrom:

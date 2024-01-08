@@ -17,6 +17,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -27,7 +28,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -247,13 +250,18 @@ func (b *Backup) handleErr(err error, key interface{}) {
 
 func (b *Backup) handleBackup(parentContext *context.Context, eb *api.EtcdBackup, isPeriodic bool) (*api.BackupStatus, error) {
 	spec := &eb.Spec
-	err := validate(spec)
+	err := fillEtcdEndpoints(parentContext, b.kubecli, eb)
 	if err != nil {
 		return nil, err
 	}
 
+	errV := validate(spec)
+	if err != nil {
+		return nil, errV
+	}
+
 	// When BackupPolicy.TimeoutInSecond <= 0, use default DefaultBackupTimeout.
-	backupTimeout := time.Duration(constants.DefaultBackupTimeout)
+	backupTimeout := constants.DefaultBackupTimeout
 	if spec.BackupPolicy != nil && spec.BackupPolicy.TimeoutInSecond > 0 {
 		backupTimeout = time.Duration(spec.BackupPolicy.TimeoutInSecond) * time.Second
 	}
@@ -315,6 +323,40 @@ func validate(spec *api.BackupSpec) error {
 		if spec.BackupPolicy.MaxBackups < 0 {
 			return errors.New("spec.BackupPolicy.MaxBackups should not be lower than 0")
 		}
+	}
+	return nil
+}
+
+func fillEtcdEndpoints(ctx *context.Context, kubecli kubernetes.Interface, eb *api.EtcdBackup) error {
+	spec := &eb.Spec
+	if len(spec.EtcdEndpoints) > 0 {
+		return nil
+	}
+	if len(spec.EtcdCluster) == 0 {
+		return errors.New("spec.etcdEndpoints and spec.etcdCluster should not be both empty")
+	}
+
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app":          "etcd",
+			"etcd_cluster": spec.EtcdCluster,
+		},
+	}
+	listOptions := metav1.ListOptions{
+		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
+	}
+
+	pods, err := kubecli.CoreV1().Pods(eb.Namespace).List(*ctx, listOptions)
+	if err != nil {
+		return fmt.Errorf("failed to list etcd pod for cluster (%s): %v", spec.EtcdCluster, err)
+	}
+
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("get pod for etcd cluster (%s) is empty", spec.EtcdCluster)
+	}
+
+	for _, pod := range pods.Items {
+		spec.EtcdEndpoints = append(spec.EtcdEndpoints, fmt.Sprintf("https://%s.%s.%s.svc:2379", pod.Name, spec.EtcdCluster, pod.Namespace))
 	}
 	return nil
 }

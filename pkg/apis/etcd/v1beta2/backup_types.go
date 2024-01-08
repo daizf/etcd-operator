@@ -70,6 +70,8 @@ type BackupSpec struct {
 	// the backup from the endpoint that has the most up-to-date state.
 	// The given endpoints must belong to the same etcd cluster.
 	EtcdEndpoints []string `json:"etcdEndpoints,omitempty"`
+	// EtcdCluster specifies the etcd cluster which will be backup.
+	EtcdCluster string `json:"etcdCluster,omitempty"`
 	// StorageType is the etcd backup storage type.
 	// We need this field because CRD doesn't support validation against invalid fields
 	// and we cannot verify invalid backup storage source.
