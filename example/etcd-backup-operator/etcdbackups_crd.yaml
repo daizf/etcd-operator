@@ -43,8 +43,9 @@ spec:
                   type: array
                   items:
                     type: string
-                etcdCluster: 'EtcdCluster is the name the etcd cluster which will be backup.'
-                type: string
+                etcdCluster:
+                  description: 'EtcdCluster is the name the etcd cluster which will be backup.'
+                  type: string
                 storageType:
                   description: StorageType is the etcd backup storage type.
                                   We need this field because CRD doesn't support validation against invalid fields
